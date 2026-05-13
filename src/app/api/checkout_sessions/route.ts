@@ -1,8 +1,11 @@
 import { NextResponse } from "next/server";
 import Stripe from "stripe";
 
-const stripe = new Stripe(process.env.STRIPE_SECRET_KEY as string, {
-});
+if (!process.env.STRIPE_SECRET_KEY) {
+  throw new Error("Missing STRIPE_SECRET_KEY");
+}
+
+const stripe = new Stripe(process.env.STRIPE_SECRET_KEY);
 
 export async function POST(req: Request) {
   try {
@@ -20,8 +23,10 @@ export async function POST(req: Request) {
       line_items: body.items.map((item: Item) => ({
         price_data: {
           currency: "usd",
-          product_data: { name: item.name },
-          unit_amount: item.price * 100, // price in cents
+          product_data: {
+            name: item.name,
+          },
+          unit_amount: item.price * 100,
         },
         quantity: item.quantity,
       })),
@@ -29,10 +34,18 @@ export async function POST(req: Request) {
       cancel_url: `${process.env.NEXT_PUBLIC_BASE_URL}/cancel`,
     });
 
-    return NextResponse.json({ id: session.id, url: session.url });
+    return NextResponse.json({
+      id: session.id,
+      url: session.url,
+    });
   } catch (err: unknown) {
     const error = err as Error;
+
     console.error("Stripe error:", error.message);
-    return NextResponse.json({ error: error.message }, { status: 500 });
+
+    return NextResponse.json(
+      { error: error.message },
+      { status: 500 }
+    );
   }
 }
